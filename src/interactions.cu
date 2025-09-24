@@ -133,14 +133,18 @@ __host__ __device__ void sampleRay(
 
         glm::vec3 specularDir = glm::reflect(inDirection, microNormal);
 
-
         glm::vec3 F0 = glm::mix(glm::vec3(0.04f), m.color, m.metallic);
         float avgF0 = glm::clamp((F0.x + F0.y + F0.z) / 3.0f, 0.02f, 0.98f);
         bool isSpecularBounce = p < avgF0;
 
-        // results, results
-        wi = glm::mix(diffuse_wi, specularDir, isSpecularBounce);
-        brdf = glm::mix(m.color / (1.0f - avgF0), specularBRDF(wo, wi, normal, microNormal, m) / avgF0, isSpecularBounce);
+        wi = glm::mix(
+            diffuse_wi, 
+            specularDir, 
+            isSpecularBounce);
+        brdf = glm::mix(
+            diffuseBRDF(wo, wi, normal, m) / (1.0f - avgF0), 
+            specularBRDF(wo, wi, normal, microNormal, m) / avgF0, 
+            isSpecularBounce);
     }
     else if (m.hasRefractive)
     {

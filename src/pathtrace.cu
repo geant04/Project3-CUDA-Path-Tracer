@@ -149,6 +149,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
+    bool DOF = false;
+
 
     if (x < cam.resolution.x && y < cam.resolution.y) {
         int index = x + (y * cam.resolution.x);
@@ -160,13 +162,27 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         // TODO: implement antialiasing by jittering the ray
         // Naive ray generation
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, segment.remainingBounces);
-        thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
-        glm::vec2 offset = glm::vec2(u01(rng), u01(rng));
+        thrust::uniform_real_distribution<float> pxOffset(-0.5f, 0.5f);
+        glm::vec2 offset = glm::vec2(pxOffset(rng), pxOffset(rng));
 
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)x + offset.x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y + offset.y - (float)cam.resolution.y * 0.5f)
         );
+
+        if (DOF)
+        {
+            // https://pathtracing.home.blog/depth-of-field/
+            float focalLength = 5.0f;
+            float aperture = 2.0f;
+
+            glm::vec3 convergencePoint = cam.position + focalLength * segment.ray.direction;
+            glm::vec3 shiftedOrigin = cam.position + cam.up * aperture * offset.x + cam.right * aperture * offset.y;
+            glm::vec3 newDir = convergencePoint - shiftedOrigin;
+
+            segment.ray.origin = shiftedOrigin;
+            segment.ray.direction = newDir;
+        }
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;

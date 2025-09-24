@@ -129,13 +129,18 @@ __host__ __device__ void sampleRay(
     {
         // Specular GGX
         glm::vec3 microNormal = glm::normalize(calculateWalterGGXSampling(normal, m.roughness, rng));
-        glm::vec3 specularDir = glm::reflect(inDirection, microNormal);
         pathSegment.microNormal = microNormal;
 
+        glm::vec3 specularDir = glm::reflect(inDirection, microNormal);
+
+
+        glm::vec3 F0 = glm::mix(glm::vec3(0.04f), m.color, m.metallic);
+        float avgF0 = glm::clamp((F0.x + F0.y + F0.z) / 3.0f, 0.02f, 0.98f);
+        bool isSpecularBounce = p < avgF0;
+
         // results, results
-        wi = specularDir;
-        brdf = specularBRDF(wo, wi, normal, microNormal, m);
-        lobeProbability = pSpecular;
+        wi = glm::mix(diffuse_wi, specularDir, isSpecularBounce);
+        brdf = glm::mix(m.color / (1.0f - avgF0), specularBRDF(wo, wi, normal, microNormal, m) / avgF0, isSpecularBounce);
     }
     else if (m.hasRefractive)
     {
@@ -196,7 +201,6 @@ __host__ __device__ void sampleRay(
         // Sample diffuse
         wi = diffuse_wi;
         brdf = m.color * diffuseBRDF(wo, wi, normal, m);
-        lobeProbability = pDiffuse;
     }
 
     // Assign wi
@@ -216,9 +220,9 @@ __host__ __device__ float GGXDistribution(float alpha, float cosTheta)
     // https://agraphicsguynotes.com/posts/sample_microfacet_brdf/#one-extra-step
     float alpha2 = alpha * alpha;
     float cos2Theta = cosTheta * cosTheta;
-    float tanSub = (alpha2 - 1.0f) * cos2Theta + 1.0f;
+    float denom = (alpha2 - 1.0f) * cos2Theta + 1.0f;
 
-    return alpha2 / (PI * tanSub * tanSub);
+    return alpha2 / (PI * denom * denom);
 }
 
 __host__ __device__ float SmithGGX(
@@ -295,21 +299,28 @@ __host__ __device__ glm::vec3 specularBRDF(
     float nDotH = glm::max(dot(normal, half), 0.0f);
     float nDotI = glm::max(dot(normal, wo), 0.0f);
     float nDotO = glm::max(dot(normal, wi), 0.0f);
-    float mDotI = glm::max(dot(microNormal,wo), 0.0f);
+    float mDotI = glm::max(dot(microNormal,wi), 0.0f);
 
-    float D = GGXDistribution(m.roughness, nDotH);
+    if (dot(wi, microNormal) < 0.0f)
+    {
+        mDotI = -mDotI;
+    }
+
     float G = SmithGGX(nDotI, nDotO, m.roughness);
        
     glm::vec3 albedo = m.color;
     glm::vec3 F0 = glm::mix(glm::vec3(0.04f), albedo, m.metallic);
     
     glm::vec3 metallicF = fresnelSchlick(F0, glm::max(dot(wi, half), 0.0f));
-    glm::vec3 dielectricF = glm::vec3(fresnelDielectric(mDotI, 1.0f, 1.460f));
+    // I hard coded the IOR of plastic,which is 1.460, into the third arg of fresnelDielectric
+    glm::vec3 dielectricF = glm::clamp(glm::vec3(fresnelDielectric(mDotI, 1.0f, 1.460f)), 0.0f, 1.0f); 
 
     glm::vec3 F = glm::mix(dielectricF, metallicF, m.metallic);
 
-    // this shit does not work!!!! help!!! I need somebody.. HELP!!
-    return (glm::vec3(1.0f) - F) * albedo + (G * F);
+    // Adapted this from Schutte's specular BRDF simplification
+    // I'm assuming the D term isn't here because of cut terms from fully evaluating GGX,
+    // but I'm confused about why the denominator just doesn't exist in this implementation.
+    return F * G;
 }
 
 __host__ __device__ glm::vec3 diffuseBRDF(

@@ -33,7 +33,7 @@
         {
             "TYPE":"Specular",
             "RGB":[0.35, 0.35, 0.85],
-            "ROUGHNESS":0.0,
+            "ROUGHNESS":0.25,
             "METALLIC":0.0
         },
         "less_rough_sphere":

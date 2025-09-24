@@ -45,6 +45,10 @@ struct Material
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+
+    // PBR
+    float roughness;
+    float metallic;
 };
 
 struct Camera
@@ -72,8 +76,12 @@ struct PathSegment
 {
     Ray ray;
     glm::vec3 color;
+    glm::vec3 microNormal;
     int pixelIndex;
     int remainingBounces;
+
+    // Probability that a given lobe/bsdf is chosen, tweaking the result
+    float lobeProbability;
 };
 
 // Use with a corresponding PathSegment to do:

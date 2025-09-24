@@ -14,10 +14,8 @@
         },
         "transmissive_white":
         {
-            "TYPE":"Transmissive",
-            "RGB":[0.98, 0.98, 0.98],
-            "IOR": 1.44,
-            "ROUGHNESS": 0.5
+            "TYPE":"Diffuse",
+            "RGB":[0.98, 0.98, 0.98]
         },
         "diffuse_red":
         {
@@ -171,17 +169,73 @@
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"transmissive_white",
-            "TRANS":[2,4.0,0.0],
+            "MATERIAL":"specular_white",
+            "TRANS":[-4.0,4.0,1.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[3.0, 3.0, 3.0]
+            "SCALE":[1.5,1.5,1.5]
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"specular_white",
-            "TRANS":[-2,4.0,0.0],
+            "MATERIAL":"less_rough_sphere",
+            "TRANS":[-2.0,4.0,1.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[3.0, 3.0, 3.0]
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mid_rough_sphere",
+            "TRANS":[0.0,4.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"more_rough_sphere",
+            "TRANS":[2.0,4.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"most_rough_sphere",
+            "TRANS":[4.0,4.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+                {
+            "TYPE":"sphere",
+            "MATERIAL":"metal_no_rough",
+            "TRANS":[-4.0,6.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"metal_less_rough_sphere",
+            "TRANS":[-2.0,6.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"metal_mid_rough_sphere",
+            "TRANS":[0.0,6.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"metal_more_rough_sphere",
+            "TRANS":[2.0,6.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"metal_most_rough_sphere",
+            "TRANS":[4.0,6.0,1.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
         }
     ]
 }

@@ -40,9 +40,40 @@ __host__ __device__ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
-__host__ __device__ void scatterRay(
+__host__ __device__ void sampleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
     glm::vec3 normal,
     const Material& m,
-    thrust::default_random_engine& rng);
+    thrust::default_random_engine& rng
+);
+
+__host__ __device__ glm::vec3 diffuseBRDF(
+    glm::vec3 wo,
+    glm::vec3 wi,
+    glm::vec3 normal,
+    const Material &m
+);
+
+__host__ __device__ glm::vec3 specularBRDF(
+    glm::vec3 wo,
+    glm::vec3 wi,
+    glm::vec3 normal,
+    glm::vec3 microNormal,
+    const Material &m
+);
+
+__host__ __device__ glm::vec3 specularBTDF(
+    glm::vec3 wo,
+    glm::vec3 wi,
+    glm::vec3 normal,
+    const Material &m
+);
+
+__host__ __device__ float fresnelDielectric(
+    float cosThetaI, 
+    float etaI, 
+    float etaT
+);
+
+__host__ __device__ glm::vec3 fresnelSchlick(glm::vec3 F0, float cosTheta);

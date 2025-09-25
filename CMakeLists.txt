@@ -55,6 +55,7 @@ set(headers
     src/glslUtility.hpp
     src/pathtrace.h
     src/scene.h
+    src/tiny_gltf.h
     src/sceneStructs.h
     src/utilities.h
 )

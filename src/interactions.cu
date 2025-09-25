@@ -154,7 +154,6 @@ __host__ __device__ void sampleRay(
         float etaA = 1.0f;
         float etaB = 1.55f;
 
-
         float rand = u01(rng);
         if (rand < 0.50f)
         {
@@ -177,16 +176,7 @@ __host__ __device__ void sampleRay(
             bool entering = cosThetaI > 0.0f;
 
             float eta = etaA / etaB;
-            float iorRatio;
-
-            if (entering)
-            {
-                iorRatio = eta;
-            }
-            else
-            {
-                iorRatio = 1.0f / eta;
-            }
+            float iorRatio = (entering) ? eta : 1.0f / eta;
 
             wi = glm::refract(inDirection, (entering) ? normal : -normal, iorRatio);
             wi = glm::mix(wi, (entering) ? -diffuseNormal : diffuseNormal, m.roughness);

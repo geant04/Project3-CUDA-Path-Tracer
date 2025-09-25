@@ -107,3 +107,63 @@ __host__ __device__ float sphereIntersectionTest(
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float triangleIntersectionTest(
+    const Triangle &triangle,
+    Ray r,
+    glm::vec3 &intersectionPoint,
+    glm::vec3 &intersectionNormal,
+    bool &outside)
+{
+#if 1
+    glm::vec3 v1 = triangle.v1;
+    glm::vec3 v2 = triangle.v2;
+    glm::vec3 v3 = triangle.v3;
+    glm::vec3 normal = triangle.normal;
+
+    float nDotDir = dot(normal, r.direction);
+
+    // Parallel hit
+    if (abs(nDotDir) < 0.001f)
+    {
+        return -1.0f;
+    }
+
+    // Scratchapixel ray/plane intersection
+    // Keep backface triangle intersection, needed for transmission!
+    // removing v1 - centroid to just v1 causes... a memory access error??
+    float D = -dot(normal, (v1));
+    float t = -(dot(normal, r.origin) + D) / dot(normal, r.direction);
+
+    glm::vec3 intersectP = r.origin + t * r.direction;
+    glm::vec3 tangentToNor;
+
+    // Edge test for (v2 - v1), 
+    // Cross of calculated tan to nor < 0 means p is on right side of edge.
+    tangentToNor = glm::cross((v2 - v1), (intersectP - v1));
+    if (dot(tangentToNor, normal) < 0.0f)
+    {
+        return -1.0f;
+    }
+
+    // Edge test for (v3 - v2),
+    tangentToNor = glm::cross((v3 - v2), (intersectP - v2));
+    if (dot(tangentToNor, normal) < 0.0f)
+    {
+        return -1.0f;
+    }
+
+    // Edge test for (v1 - v3)
+    tangentToNor = glm::cross((v1 - v3), (intersectP - v3));
+    if (dot(tangentToNor, normal) < 0.0f)
+    {
+        return -1.0f;
+    }
+
+    outside = false;
+    intersectionPoint = intersectP;
+    intersectionNormal = normal;
+
+    return t - 0.0001f;
+#endif
+}

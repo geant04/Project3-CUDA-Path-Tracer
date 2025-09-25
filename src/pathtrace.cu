@@ -89,6 +89,7 @@ static ShadeableIntersection* dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 static bool* dev_active_paths = NULL;
+static Triangle* dev_triangles = NULL;
 
 
 void InitDataContainer(GuiDataContainer* imGuiData)
@@ -120,6 +121,9 @@ void pathtraceInit(Scene* scene)
     // TODO: initialize any extra device memeory you need
     cudaMalloc(&dev_active_paths, pixelcount * sizeof(bool));
     cudaMemset(dev_active_paths, false, pixelcount * sizeof(bool));
+    
+    cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(Triangle));
+    cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
     checkCUDAError("pathtraceInit");
 }
@@ -132,6 +136,8 @@ void pathtraceFree()
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_active_paths);
+    cudaFree(dev_triangles);
 
     checkCUDAError("pathtraceFree");
 }
@@ -199,6 +205,8 @@ __global__ void computeIntersections(
     PathSegment* pathSegments,
     Geom* geoms,
     int geoms_size,
+    Triangle* triangles,
+    int triangles_size,
     ShadeableIntersection* intersections,
     bool* dev_active_paths)
 {
@@ -213,6 +221,7 @@ __global__ void computeIntersections(
         glm::vec3 normal;
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
+        int hit_tri_index = -1;
         bool outside = true;
 
         glm::vec3 tmp_intersect;
@@ -232,7 +241,6 @@ __global__ void computeIntersections(
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            // TODO: add more intersection tests here... triangle? metaball? CSG?
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -245,7 +253,22 @@ __global__ void computeIntersections(
             }
         }
 
-        if (hit_geom_index == -1)
+        for (int i = 0; i < triangles_size; i++)
+        {
+            const Triangle& triangle = triangles[i];
+
+            t = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+
+            if (t > 0.0f && t_min > t)
+            {
+                t_min = t;
+                hit_tri_index = i;
+                intersect_point = tmp_intersect;
+                normal = tmp_normal;
+            }
+        }
+
+        if (hit_geom_index == -1 && hit_tri_index == -1)
         {
             intersections[path_index].t = -1.0f;
         }
@@ -253,7 +276,7 @@ __global__ void computeIntersections(
         {
             // The ray hits something
             intersections[path_index].t = t_min;
-            intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+            intersections[path_index].materialId = (hit_tri_index != -1) ? triangles[hit_tri_index].materialid : geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
             
             dev_active_paths[path_index] = true;
@@ -437,6 +460,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             dev_paths,
             dev_geoms,
             hst_scene->geoms.size(),
+            dev_triangles,
+            hst_scene->triangles.size(),
             dev_intersections,
             dev_active_paths
         );

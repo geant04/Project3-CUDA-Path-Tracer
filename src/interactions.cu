@@ -155,19 +155,26 @@ __host__ __device__ void sampleRay(
         float etaB = 1.55f;
 
         float rand = u01(rng);
-        if (rand < 0.50f)
+
+        glm::vec3 R0 = glm::vec3((etaA - etaB) / (etaA + etaB));
+        R0 = R0 * R0;
+        glm::vec3 F = fresnelSchlick(R0, abs(cosThetaI));
+
+        // no tint, do this for now
+        brdf = m.color;
+
+        if (rand < length(F))
         {
             wi = glm::reflect(glm::normalize(-wo), normal);
             wi = glm::mix(wi, diffuseWi, m.roughness);
             
             // awesome artificial roughness trick from seb. lague
-            
             float cosTheta = abs(dot(normal, wi));
             glm::vec3 R0 = glm::vec3((etaA - etaB) / (etaA + etaB));
             R0 = R0 * R0;
             glm::vec3 F = fresnelSchlick(R0, abs(cosThetaI));
 
-            brdf = 2.0f * F;
+            // brdf = 2.0f * F;
         }
         else
         {
@@ -187,7 +194,7 @@ __host__ __device__ void sampleRay(
             R0 = R0 * R0;
             glm::vec3 F = fresnelSchlick(R0, abs(cosThetaI));
 
-            brdf = 2.0f * glm::vec3(1.0f - F);
+            // brdf = 2.0f * glm::vec3(1.0f - F);
         }
     }
     else
@@ -201,7 +208,7 @@ __host__ __device__ void sampleRay(
     pathSegment.ray.direction = wi;
 
     // Assign intersect for the next bounce
-    pathSegment.ray.origin = intersect + wi * 0.005f;
+    pathSegment.ray.origin = intersect + wi * 0.1f;
 
     // Yeah
     pathSegment.color *= brdf;

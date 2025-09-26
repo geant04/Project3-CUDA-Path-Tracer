@@ -115,19 +115,15 @@ __host__ __device__ float triangleIntersectionTest(
     glm::vec3 &intersectionNormal,
     bool &outside)
 {
-#if 1
     glm::vec3 v1 = triangle.v1;
     glm::vec3 v2 = triangle.v2;
     glm::vec3 v3 = triangle.v3;
-    glm::vec3 normal = triangle.normal;
+
+    glm::vec3 v2v1 = v2 - v1;
+    glm::vec3 v3v1 = v3 - v1;
+    glm::vec3 normal = glm::normalize(glm::cross(v2v1, v3v1));
 
     float nDotDir = dot(normal, r.direction);
-
-    // Parallel hit
-    if (abs(nDotDir) < 0.001f)
-    {
-        return -1.0f;
-    }
 
     // Scratchapixel ray/plane intersection
     // Keep backface triangle intersection, needed for transmission!
@@ -160,10 +156,107 @@ __host__ __device__ float triangleIntersectionTest(
         return -1.0f;
     }
 
-    outside = false;
+    outside = dot(normal, r.direction) > 0.0f;
     intersectionPoint = intersectP;
     intersectionNormal = normal;
 
-    return t - 0.0001f;
-#endif
+    return t;
+}
+
+__host__ __device__ bool aabbIntersectionTest(
+    const Ray &r,
+    float curr_tmin,
+    glm::vec3 aabbMin,
+    glm::vec3 aabbMax)
+{
+    // Copying aabb collision logic from Jacco Bikker's blog for now. Need to study it later.
+    float tx1 = (aabbMin.x - r.origin.x) / r.direction.x;
+    float tx2 = (aabbMax.x - r.origin.x) / r.direction.x;
+    float tmin = glm::min(tx1, tx2);
+    float tmax = glm::max(tx1, tx2);
+
+    float ty1 = (aabbMin.y - r.origin.y) / r.direction.y;
+    float ty2 = (aabbMax.y - r.origin.y) / r.direction.y;
+    tmin = glm::max(tmin, glm::min(ty1, ty2));
+    tmax = glm::min(tmax, glm::max(ty1, ty2));
+
+    float tz1 = (aabbMin.z - r.origin.z) / r.direction.z;
+    float tz2 = (aabbMax.z - r.origin.z) / r.direction.z;
+    tmin = glm::max(tmin, glm::min(tz1, tz2));
+    tmax = glm::min(tmax, glm::max(tz1, tz2));
+
+    return tmax >= tmin && tmin < curr_tmin && tmax > 0;
+}
+
+
+__host__ __device__ float bvhIntersectionTest(
+    const Ray &r,
+    BVHNode* bvhNodes, 
+    Triangle* triangles, 
+    int* triangleIndices,
+    glm::vec3 &intersectionPoint,
+    glm::vec3 &intersectionNormal,
+    int &minTriIndex,
+    float curr_tmin)
+{
+    // As it stands for our awesome simple cube, there are only 2 nodes.
+    // Recursive to iterate logic taken from Sebastian Lague. Why size of 10? I think in theory, our stack is only 2 indices large.
+    int nodeIdxStack[64];
+    int stackIdx = 0;
+    nodeIdxStack[stackIdx++] = 0;
+
+    float t = curr_tmin;
+    glm::vec3 tempIsectP = intersectionPoint;
+    glm::vec3 tempNormal = intersectionNormal;
+    int tempTriIdx = -1;
+
+    while (stackIdx > 0)
+    {
+        // Pop off stack
+        int nodeIdx = nodeIdxStack[--stackIdx];
+        BVHNode &node = bvhNodes[nodeIdx];
+
+        if (!aabbIntersectionTest(r, curr_tmin, node.aabbMin, node.aabbMax))
+        {
+            continue;
+        }
+        
+        // Leaf check. Has no children.
+        if (node.prims > 0)
+        {
+            glm::vec3 dummyIsect;
+            glm::vec3 dummyNormal;
+            bool dummyOutside;
+
+            for (int i = node.firstIdx; i < node.firstIdx + node.prims; i++)
+            {
+                int triangleIdx = triangleIndices[i];
+                Triangle &triangle = triangles[triangleIdx];
+
+                float tempT = triangleIntersectionTest(triangle, r, dummyIsect, dummyNormal, dummyOutside);
+                if (tempT > 0.0f && t > tempT)
+                {
+                    t = tempT;
+                    tempIsectP = dummyIsect;
+                    tempNormal = dummyNormal;
+                    tempTriIdx = triangleIdx;
+                }
+            }
+        }
+        else
+        {
+            nodeIdxStack[stackIdx++] = node.leftChild;
+            nodeIdxStack[stackIdx++] = node.rightChild;
+        }
+    }
+
+    if (t > 0.0f)
+    {
+        intersectionPoint = tempIsectP;
+        intersectionNormal = tempNormal;
+        minTriIndex = tempTriIdx;
+        return t;
+    }
+
+    return -1.0f;
 }

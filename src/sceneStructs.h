@@ -40,8 +40,15 @@ struct Triangle
     glm::vec3 v1;
     glm::vec3 v2;
     glm::vec3 v3;
-    glm::vec3 normal;
+    glm::vec3 centroid;
     int materialid;
+};
+
+struct BVHNode
+{
+    glm::vec3 aabbMin, aabbMax;
+    int leftChild, rightChild;
+    int firstIdx, prims;
 };
 
 struct Material

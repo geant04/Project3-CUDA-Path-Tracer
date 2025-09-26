@@ -79,3 +79,13 @@ __host__ __device__ float triangleIntersectionTest(
     glm::vec3 &intersectionPoint,
     glm::vec3 &intersectionNormal,
     bool &outside);
+
+__host__ __device__ float bvhIntersectionTest(
+    const Ray &r,
+    BVHNode* bvhNodes, 
+    Triangle* triangles, 
+    int* triangleIndices,
+    glm::vec3 &intersectionPoint,
+    glm::vec3 &intersectionNormal,
+    int &minTriIndex,
+    float curr_tmin);

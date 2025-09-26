@@ -17,7 +17,8 @@
 using namespace std;
 using json = nlohmann::json;
 
-#define DEBUGGING_LOADING 0
+#define DEBUG_GLTF_LOADING 0
+#define DEBUG_BVH_BUILDING 0
 
 Scene::Scene(string filename)
 {
@@ -130,6 +131,10 @@ void Scene::loadFromJSON(const std::string& jsonName)
         processModel(geoms, model, MatNameToID);
     }
 
+    // BVH !!!!!!! so important...
+    buildBVH();
+
+    //////////////////////////////////////////
     const auto& cameraData = data["Camera"];
     Camera& camera = state.camera;
     RenderState& state = this->state;
@@ -256,11 +261,6 @@ void Scene::processModel(vector<Geom> &geoms, const json &jsonModel, std::unorde
                 glm::vec3 v2 = glm::vec3(positionData[i1 * 3], positionData[i1 * 3 + 1], positionData[i1 * 3 + 2]);
                 glm::vec3 v3 = glm::vec3(positionData[i2 * 3], positionData[i2 * 3 + 1], positionData[i2 * 3 + 2]);
 
-                // Calculate a normal
-                glm::vec3 edge1 = v2 - v1;
-                glm::vec3 edge2 = v3 - v1;
-                glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
-
                 const auto& trans = jsonModel["TRANS"];
                 glm::vec3 translation = glm::vec3(trans[0], trans[1], trans[2]);
 
@@ -268,18 +268,155 @@ void Scene::processModel(vector<Geom> &geoms, const json &jsonModel, std::unorde
                 v2 += translation;
                 v3 += translation;
 
-#if DEBUGGING_LOADING
+                // Calculate centroid, needed for BVH building
                 glm::vec3 centroid = (v1 + v2 + v3) / 3.0f;
+
+#if DEBUG_GLTF_LOADING
+                if (i < 2)
+                {
+                // Calculate a normal
+                glm::vec3 edge1 = v2 - v1;
+                glm::vec3 edge2 = v3 - v1;
+                glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
 
                 std::cout << "normal of face " << (i+1)/3 << ": " << normal.x << ", " << normal.y << ", " << normal.z << std::endl;
                 std::cout << "centroid of face " << (i+1)/3 << ": " << centroid.x << ", " << centroid.y << ", " << centroid.z << std::endl;
+                }
 #endif 
                 int materialID = MatNameToID[jsonModel["MATERIAL"]];
 
-                triangles.push_back(Triangle{ v1, v2, v3, normal, materialID });
+                triangles.push_back(Triangle{ v1, v2, v3, centroid, materialID });
             }
         }
     }
-
+    
     return;
+}
+
+void Scene::buildBVH()
+{
+    // Triangle centroids have already been computed by this point
+    int rootIdx = 0;
+    int nodesUsed = 1;
+
+    int n = triangles.size();
+    bvhNodes = std::vector<BVHNode>(n);
+
+    // Layer of index indirection
+    for (int i = 0; i < n; i++)
+    {
+        triangleIndices.push_back(i);
+    }
+
+    // Root node idx = 0
+    BVHNode& rootNode = bvhNodes[rootIdx];
+    rootNode.leftChild = 0;
+    rootNode.rightChild = 0;
+    rootNode.firstIdx = 0;
+    rootNode.prims = n;
+
+    updateBVHBounds(rootIdx);
+    splitBVHNode(rootIdx, nodesUsed);
+}
+
+void Scene::updateBVHBounds(int nodeIdx)
+{
+    BVHNode &node = bvhNodes[nodeIdx];
+
+    // Root node min/max AABB bounds calculation
+    node.aabbMin = glm::vec3(1e30f);
+    node.aabbMax = glm::vec3(-1e30f);
+
+    for (int i = node.firstIdx; i < node.firstIdx + node.prims; i++)
+    {
+        int leafIdx = triangleIndices[i];
+        const Triangle &prim = triangles[leafIdx];
+
+        node.aabbMin = glm::min(node.aabbMin, prim.v1);
+        node.aabbMin = glm::min(node.aabbMin, prim.v2);
+        node.aabbMin = glm::min(node.aabbMin, prim.v3);
+        
+        node.aabbMax = glm::max(node.aabbMax, prim.v1);
+        node.aabbMax = glm::max(node.aabbMax, prim.v2);
+        node.aabbMax = glm::max(node.aabbMax, prim.v3);
+    }
+}
+
+void Scene::splitBVHNode(int nodeIdx, int &nodesUsed)
+{
+#if DEBUG_BVH_BUILDING
+    std::cout << "splitting node: " << nodeIdx << std::endl;
+#endif
+    BVHNode &node = bvhNodes[nodeIdx];
+
+    if (node.prims <= 2) 
+    {
+#if DEBUG_BVH_BUILDING
+        std::cout << "stopping, building leaf " << nodeIdx << ", children: " << node.prims << std::endl;
+#endif
+        return;
+    }
+    // Determine axis and position of split plane
+    glm::vec3 extent = node.aabbMax - node.aabbMin;
+
+    // Fancy way of finding the max of XYZ. Return axis in form of 0,1,2
+    int axis = (extent.z > extent.y) ? 2 : (extent.y > extent.x) ? 1 : 0;
+    
+    // Split group of prim in 2 halves w split plane
+    // Notice extent[axis] * 0.5f -- this is to split in HALF. May change later
+    float splitPos = node.aabbMin[axis] + extent[axis] * 0.5f;
+
+    int leftPrimIndex = node.firstIdx;
+    int rightPrimIndex = leftPrimIndex + node.prims - 1;
+
+    while (leftPrimIndex <= rightPrimIndex)
+    {
+        int leftTriangleIndex = triangleIndices[leftPrimIndex];
+
+        // Is left?
+        if (triangles[leftTriangleIndex].centroid[axis] < splitPos)
+        {
+            leftPrimIndex++;
+        }
+        // Is right?
+        else
+        {
+            std::swap(triangleIndices[leftPrimIndex], triangleIndices[rightPrimIndex]);
+            rightPrimIndex--;
+        }
+    }
+
+    int leftPrims = leftPrimIndex - node.firstIdx;
+    int rightPrims = node.prims - leftPrims;
+
+    // In theory, one of the boxes can be completely empty. This will handle that
+    if (leftPrims == 0 || rightPrims == 0) {
+#if DEBUG_BVH_BUILDING
+        std::cout << "degenerate split, stopping and making idx " << nodeIdx << " a leaf!" << std::endl;
+#endif
+        return;
+    }
+
+    // Create children for each half
+    int leftChildIdx = nodesUsed++;
+    int rightChildIdx = nodesUsed++;
+    
+    node.leftChild = leftChildIdx;
+    bvhNodes[leftChildIdx].firstIdx = node.firstIdx;
+    bvhNodes[leftChildIdx].prims = leftPrims;
+
+    node.rightChild = rightChildIdx;
+    bvhNodes[rightChildIdx].firstIdx = leftPrimIndex;
+    bvhNodes[rightChildIdx].prims = node.prims - leftPrims;
+
+    // Make sure to reset it so that we can use this to identify leaves.
+    node.prims = 0;
+
+    // Update bounds
+    updateBVHBounds(leftChildIdx);
+    updateBVHBounds(rightChildIdx);
+
+    // Recurse into children
+    splitBVHNode(leftChildIdx, nodesUsed);
+    splitBVHNode(rightChildIdx, nodesUsed);
 }

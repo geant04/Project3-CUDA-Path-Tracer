@@ -1,0 +1,139 @@
+{
+    "Materials":
+    {
+        "light":
+        {
+            "TYPE":"Emitting",
+            "RGB":[1.0, 1.0, 1.0],
+            "EMITTANCE":5.0
+        },
+        "diffuse_white":
+        {
+            "TYPE":"Diffuse",
+            "RGB":[0.98, 0.98, 0.98]
+        },
+        "transmissive_white":
+        {
+            "TYPE":"Transmissive",
+            "RGB":[0.98, 0.98, 0.98],
+            "IOR": 1.44,
+            "ROUGHNESS": 0.0
+        },
+        "diffuse_red":
+        {
+            "TYPE":"Diffuse",
+            "RGB":[0.85, 0.35, 0.35]
+        },
+        "diffuse_green":
+        {
+            "TYPE":"Diffuse",
+            "RGB":[0.35, 0.85, 0.35]
+        },
+        "specular_white":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.25,
+            "METALLIC":0.0
+        },
+        "less_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.25,
+            "METALLIC":0.0
+        },
+        "mid_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.50,
+            "METALLIC":0.0
+        },
+        "more_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.75,
+            "METALLIC":0.0
+        },
+        "most_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":1.0,
+            "METALLIC":0.0
+        },
+        "metal_green":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.85, 0.35],
+            "METALLIC":1.0,
+            "ROUGHNESS":0.0
+        },
+        "metal_green_rough":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.85, 0.35],
+            "METALLIC":1.0,
+            "ROUGHNESS":0.5
+        },
+        "metal_no_rough":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.85, 0.85, 0.85],
+            "ROUGHNESS":0.0,
+            "METALLIC":1.0
+        },
+        "metal_less_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.25,
+            "METALLIC":1.0
+        },
+        "metal_mid_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.50,
+            "METALLIC":1.0
+        },
+        "metal_more_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":0.75,
+            "METALLIC":1.0
+        },
+        "metal_most_rough_sphere":
+        {
+            "TYPE":"Specular",
+            "RGB":[0.35, 0.35, 0.85],
+            "ROUGHNESS":1.0,
+            "METALLIC":1.0
+        }
+    },
+    "Camera":
+    {
+        "RES":[800,800],
+        "FOVY":45.0,
+        "ITERATIONS":5000,
+        "DEPTH":8,
+        "FILE":"cornell",
+        "EYE":[0.0,5.0,5.5],
+        "LOOKAT":[0.0,5.0,0.0],
+        "UP":[0.0,1.0,0.0]
+    },
+    "Objects":
+    [
+        {
+            "TYPE":"mesh",
+            "MATERIAL":"diffuse_white",
+            "FILE_PATH":"../scenes/models/teapot.glb",
+            "TRANS":[0.0,4.0,0.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[3.0, 3.0, 3.0]
+        }
+    ]
+}

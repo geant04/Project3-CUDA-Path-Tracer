@@ -23,6 +23,8 @@
 
 #define DEBUG_COMPACT 0
 
+#define DEBUG_RAYTRACE_ONLY 1
+
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char* msg, const char* file, int line)
@@ -90,7 +92,10 @@ static ShadeableIntersection* dev_intersections = NULL;
 // ...
 static bool* dev_active_paths = NULL;
 static Triangle* dev_triangles = NULL;
+static BVHNode* dev_BVHNodes = NULL;
 
+// Not the best name, but represents the index map used from node to triangle
+static int* dev_triIndices = NULL;
 
 void InitDataContainer(GuiDataContainer* imGuiData)
 {
@@ -125,6 +130,12 @@ void pathtraceInit(Scene* scene)
     cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(Triangle));
     cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
+    cudaMalloc(&dev_BVHNodes, scene->bvhNodes.size() * sizeof(BVHNode));
+    cudaMemcpy(dev_BVHNodes, scene->bvhNodes.data(), scene->bvhNodes.size() * sizeof(BVHNode), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&dev_triIndices, scene->triangleIndices.size() * sizeof(int));
+    cudaMemcpy(dev_triIndices, scene->triangleIndices.data(), scene->triangleIndices.size() * sizeof(int), cudaMemcpyHostToDevice);
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -138,6 +149,8 @@ void pathtraceFree()
     // TODO: clean up any extra device memory you created
     cudaFree(dev_active_paths);
     cudaFree(dev_triangles);
+    cudaFree(dev_BVHNodes);
+    cudaFree(dev_triIndices);
 
     checkCUDAError("pathtraceFree");
 }
@@ -207,6 +220,8 @@ __global__ void computeIntersections(
     int geoms_size,
     Triangle* triangles,
     int triangles_size,
+    BVHNode* bvhNodes,
+    int* triangleIndices,
     ShadeableIntersection* intersections,
     bool* dev_active_paths)
 {
@@ -253,6 +268,7 @@ __global__ void computeIntersections(
             }
         }
 
+#if 0
         for (int i = 0; i < triangles_size; i++)
         {
             const Triangle& triangle = triangles[i];
@@ -267,6 +283,27 @@ __global__ void computeIntersections(
                 normal = tmp_normal;
             }
         }
+#else
+        int minTriIndex = -1;
+
+        t = bvhIntersectionTest(
+            pathSegment.ray, 
+            bvhNodes, 
+            triangles, 
+            triangleIndices, 
+            tmp_intersect, 
+            tmp_normal, 
+            minTriIndex, 
+            t_min);
+
+        if (t > 0.0f && t_min > t)
+        {
+            t_min = t;
+            hit_tri_index = minTriIndex;
+            intersect_point = tmp_intersect;
+            normal = tmp_normal;
+        }
+#endif
 
         if (hit_geom_index == -1 && hit_tri_index == -1)
         {
@@ -335,8 +372,14 @@ __global__ void shadeFakeMaterial(
                 Ray wo = pathSegments[idx].ray;
                 glm::vec3 intersectionPoint = getPointOnRay(wo, intersection.t); //wo.origin + glm::normalize(wo.direction) * (intersection.t);
                 
+#if DEBUG_RAYTRACE_ONLY
+                pathSegments[idx].color *= 0.50f * dot(glm::normalize(glm::vec3(0.7f, 1.0f, 0.7f)), surfaceNormal) + 0.50f;
+                pathSegments[idx].remainingBounces = 0;
+#else
                 // Sample ray finds us our wi
                 sampleRay(pathSegments[idx], intersectionPoint, surfaceNormal, material, rng);
+#endif
+
             }
             // If there was no intersection, color the ray black.
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -385,7 +428,12 @@ struct identity_pred {
  */
 void pathtrace(uchar4* pbo, int frame, int iter)
 {
+#if DEBUG_RAYTRACE_ONLY
+    const int traceDepth = 1;
+#else
     const int traceDepth = hst_scene->state.traceDepth;
+#endif
+
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
 
@@ -462,6 +510,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             hst_scene->geoms.size(),
             dev_triangles,
             hst_scene->triangles.size(),
+            dev_BVHNodes,
+            dev_triIndices,
             dev_intersections,
             dev_active_paths
         );

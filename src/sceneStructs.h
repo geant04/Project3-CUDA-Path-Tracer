@@ -16,6 +16,12 @@ enum GeomType
     TRIANGLE
 };
 
+enum MediumType
+{
+    VACUUM,
+    ISOTROPIC
+};
+
 struct Ray
 {
     glm::vec3 origin;
@@ -67,6 +73,7 @@ struct Material
     // PBR
     float roughness;
     float metallic;
+    float subsurface;
 };
 
 struct Camera
@@ -99,7 +106,8 @@ struct PathSegment
     int remainingBounces;
 
     // Probability that a given lobe/bsdf is chosen, tweaking the result
-    float lobeProbability;
+    // medium o
+    MediumType medium;
 };
 
 // Use with a corresponding PathSegment to do:

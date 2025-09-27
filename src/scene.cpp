@@ -52,6 +52,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
 
         newMaterial.roughness = 1.0f;
         newMaterial.metallic = 0.0f;
+        newMaterial.subsurface = 0.0f;
         newMaterial.hasReflective = false;
         newMaterial.hasRefractive = false;
 
@@ -81,6 +82,12 @@ void Scene::loadFromJSON(const std::string& jsonName)
             newMaterial.indexOfRefraction = p["IOR"];
             newMaterial.hasRefractive = true;
             newMaterial.roughness = p["ROUGHNESS"];
+        }
+        else if (p["TYPE"] == "Subsurface")
+        {
+            const auto& col = p["RGB"];
+            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+            newMaterial.subsurface  = p["SUBSURFACE"];
         }
 
         MatNameToID[name] = materials.size();
@@ -129,10 +136,14 @@ void Scene::loadFromJSON(const std::string& jsonName)
     for (const auto& model : models)
     {
         processModel(geoms, model, MatNameToID);
+        std::cout << "tris loaded: " << triangles.size() << std::endl;
     }
 
     // BVH !!!!!!! so important...
-    buildBVH();
+    if (triangles.size() > 0)
+    {
+        buildBVH();
+    }
 
     //////////////////////////////////////////
     const auto& cameraData = data["Camera"];

@@ -23,7 +23,7 @@
 
 #define DEBUG_COMPACT 0
 
-#define DEBUG_RAYTRACE_ONLY 1
+#define DEBUG_RAYTRACE_ONLY 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -286,22 +286,25 @@ __global__ void computeIntersections(
 #else
         int minTriIndex = -1;
 
-        t = bvhIntersectionTest(
-            pathSegment.ray, 
-            bvhNodes, 
-            triangles, 
-            triangleIndices, 
-            tmp_intersect, 
-            tmp_normal, 
-            minTriIndex, 
-            t_min);
-
-        if (t > 0.0f && t_min > t)
+        if (triangles_size > 0)
         {
-            t_min = t;
-            hit_tri_index = minTriIndex;
-            intersect_point = tmp_intersect;
-            normal = tmp_normal;
+            t = bvhIntersectionTest(
+                pathSegment.ray, 
+                bvhNodes, 
+                triangles, 
+                triangleIndices, 
+                tmp_intersect, 
+                tmp_normal, 
+                minTriIndex, 
+                t_min);
+
+            if (t > 0.0f && t_min > t)
+            {
+                t_min = t;
+                hit_tri_index = minTriIndex;
+                intersect_point = tmp_intersect;
+                normal = tmp_normal;
+            }
         }
 #endif
 
